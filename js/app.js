@@ -1,7 +1,7 @@
 PDFJS.workerSrc = "js/pdf.worker.js";
 
 // Take array of text objects from PDF.JS and generate our sheet structure
-function generatePageDataObject(text) {
+function generatePageDataArray(text) {
 	return [
 		/* start_date */ text[0].str.match(/: (.*) -/)[1],
 		/* end_date */ text[0].str.split("- ")[1],
@@ -64,6 +64,19 @@ function extractDataFromFiles(files) {
 	return Promise.all(Array.from(files).map(extractDataFromPDF));
 }
 
+
+// Return a promise to extract data from a single page
+function extractDataFromPage(pdf, i) {
+	return new Promise(function(resolve, reject){
+		pdf.getPage(i).then(function(page){
+			page.getTextContent().then(function(content){
+				// Resolve page promise with data array from page content
+				resolve(generatePageDataArray(content.items));
+			});
+		});
+	});
+}
+
 // Return a promise to extract data from a given file
 // Promise resolves when text has been extracted from each page and placed into an array
 function extractDataFromPDF(file) {
@@ -73,19 +86,15 @@ function extractDataFromPDF(file) {
 			pdfData = new Uint8Array(e.target.result);
 			// Load document into PDF.JS
 			PDFJS.getDocument(pdfData).then(function(pdf){
-				// Iterate over each page and push its content to the global array
-				var pdfPromises = [];
+				// Create an array of promises
+				var pagePromises = [];
+				// Iteration is needed because PDF.JS does not expose an array of all pages
 				for(var i = 1; i <= pdf.numPages; i++){
-					pdfPromises.push(new Promise(function(resolve, reject){
-						pdf.getPage(i).then(function(page){
-							page.getTextContent().then(function(content){
-								resolve(generatePageDataObject(content.items));
-							});
-						});
-					}));
+					// For each page, make a new promise
+					pagePromises.push(extractDataFromPage(pdf,i));
 				}
-				// When data from all pages have been extracted, resolve the promise
-				resolve(Promise.all(pdfPromises));
+				// Resolve the file promise with a promise to resolve all the page promises
+				resolve(Promise.all(pagePromises));
 			});
 		};
 		pdfReader.onerror = pdfReader.onabort = reject;
@@ -95,15 +104,19 @@ function extractDataFromPDF(file) {
 }
 
 function processFiles() {
-	// There should only be ony template file submitted
+	// Show loading gif
+	loadingGif = document.getElementById("loading_gif");
+	loadingGif.style.display = "inline";
+	// There should only be one template file submitted
 	var templateFile = document.getElementById("xlsx_template").files[0];
 	XlsxPopulate.fromDataAsync(templateFile).then(function(workbook) {
 		// Get FileList (not array) of submitted PDFs
 		var pdfFiles = document.getElementById("pdf_data").files;
 		// Load each PDF file into a PDFJS object
 		extractDataFromFiles(pdfFiles).then(function(results){
+			// Flatten returned array into a 2D array
+			var data = results.reduce((a,b) => a.concat(b), []);
 			// Add data from PDF files to submitted XLSX template
-			var data = results.reduce((a,b)=>a.concat(b),[]);
 			workbook.sheet(0).cell("A2").value(data);
 			// Download new file from browser
 			workbook.outputAsync().then(function(blob) {
@@ -115,6 +128,8 @@ function processFiles() {
 	            a.click();
 	            window.URL.revokeObjectURL(url);
 	            document.body.removeChild(a);
+	            // Hide loading gif
+	            loadingGif.style.display = "none";
 	    	});
 		});
     });

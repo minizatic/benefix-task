@@ -1,0 +1,22 @@
+#main{
+	max-width: 400px;
+	margin-top: 20px;
+	margin-left: 20px;
+	font-family: sans-serif;
+}
+#main #submit_files {
+	background-color: #2374db;
+	border: 2px solid #2374db;
+	border-radius: 25px;
+	color: #fff;
+	padding: 10px;
+	transition-duration: 0.4s;
+}
+#main #submit_files:hover {
+	background-color: #fff;
+	color: #2374db;
+	cursor: pointer;
+}
+#main #loading_gif {
+	margin-left: 20px;
+}
