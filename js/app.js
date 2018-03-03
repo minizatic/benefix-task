@@ -61,18 +61,23 @@ function generatePageDataArray(text) {
 // Return a promise to extract data from all files
 // Promise resolves when all map operations have resolved
 function extractDataFromFiles(files) {
-	return Promise.all(Array.from(files).map(extractDataFromPDF));
+	return Promise.all(Array.from(files).map(extractDataFromPDF))
+	.catch(function(){
+		displayError("File must be a PDF");
+	});
 }
 
 
 // Return a promise to extract data from a single page
 function extractDataFromPage(pdf, i) {
 	return new Promise(function(resolve, reject){
-		pdf.getPage(i).then(function(page){
-			page.getTextContent().then(function(content){
-				// Resolve page promise with data array from page content
-				resolve(generatePageDataArray(content.items));
-			});
+		pdf.getPage(i)
+		.then(function(page){
+			return page.getTextContent()
+		})
+		.then(function(content){
+			// Resolve page promise with data array from page content
+			resolve(generatePageDataArray(content.items));
 		});
 	});
 }
@@ -95,7 +100,7 @@ function extractDataFromPDF(file) {
 				}
 				// Resolve the file promise with a promise to resolve all the page promises
 				resolve(Promise.all(pagePromises));
-			});
+			}, reject);
 		};
 		pdfReader.onerror = pdfReader.onabort = reject;
 		// Get content of PDF file
@@ -103,7 +108,19 @@ function extractDataFromPDF(file) {
 	});
 }
 
+// Display given error message
+function displayError(message) {
+	document.getElementById("error_message").textContent = message;
+	document.getElementById("loading_gif").style.display = "none";
+}
+
+// Reset error display
+function resetError(){
+	document.getElementById("error_message").textContent = "";
+}
+
 function processFiles() {
+	resetError();
 	// Show loading gif
 	loadingGif = document.getElementById("loading_gif");
 	loadingGif.style.display = "inline";
@@ -112,25 +129,31 @@ function processFiles() {
 	XlsxPopulate.fromDataAsync(templateFile).then(function(workbook) {
 		// Get FileList (not array) of submitted PDFs
 		var pdfFiles = document.getElementById("pdf_data").files;
-		// Load each PDF file into a PDFJS object
-		extractDataFromFiles(pdfFiles).then(function(results){
-			// Flatten returned array into a 2D array
-			var data = results.reduce((a,b) => a.concat(b), []);
-			// Add data from PDF files to submitted XLSX template
-			workbook.sheet(0).cell("A2").value(data);
-			// Download new file from browser
-			workbook.outputAsync().then(function(blob) {
-	            var url = window.URL.createObjectURL(blob);
-	            var a = document.createElement("a");
-	            document.body.appendChild(a);
-	            a.href = url;
-	            a.download = "BeneFix Small Group Plans.xlsx";
-	            a.click();
-	            window.URL.revokeObjectURL(url);
-	            document.body.removeChild(a);
-	            // Hide loading gif
-	            loadingGif.style.display = "none";
-	    	});
-		});
+		if(pdfFiles.length > 0){
+			// Load each PDF file into a PDFJS object
+			extractDataFromFiles(pdfFiles).then(function(results){
+				// Flatten returned array into a 2D array
+				var data = results.reduce((a,b) => a.concat(b), []);
+				// Add data from PDF files to submitted XLSX template
+				workbook.sheet(0).cell("A2").value(data);
+				// Download new file from browser
+				workbook.outputAsync().then(function(blob) {
+		            var url = window.URL.createObjectURL(blob);
+		            var a = document.createElement("a");
+		            document.body.appendChild(a);
+		            a.href = url;
+		            a.download = "BeneFix Small Group Plans.xlsx";
+		            a.click();
+		            window.URL.revokeObjectURL(url);
+		            document.body.removeChild(a);
+		            // Hide loading gif
+		            loadingGif.style.display = "none";
+		    	});
+			});
+		} else {
+			displayError("Make sure you have selected at least one PDF file");
+		}
+    }, function(){
+    	displayError("Make sure you have selected a template and that it is a .xlsx file");
     });
 }

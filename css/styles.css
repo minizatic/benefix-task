@@ -20,3 +20,6 @@
 #main #loading_gif {
 	margin-left: 20px;
 }
+#main #error_message {
+	color: red;
+}

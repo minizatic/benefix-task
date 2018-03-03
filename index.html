@@ -13,10 +13,11 @@
 		<div id="main">
 			<img src="img/logo.png" width="160" />
 			<h1>PDF to XLSX</h1>
+			<p id="error_message"></p>
 			<p>Please select an XLSX template</p>
-			<input id="xlsx_template" type="file" />
+			<input id="xlsx_template" type="file" accept=".xlsx"/>
 			<p>Please select one or more PDF files</p>
-			<input id="pdf_data" type="file" multiple="multiple" />
+			<input id="pdf_data" type="file" multiple="multiple" accept=".pdf" />
 			<hr/>
 			<!-- Execute processFiles() when submit button is clicked -->
 			<input id="submit_files" type="button" value="Submit" onclick="processFiles()" />
